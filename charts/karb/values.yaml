@@ -78,8 +78,11 @@ operator:
     initialDelaySeconds: 0
     timeoutSeconds: 1
 
+  # Readyness probe are useful if you want to start karb just before something else that
+  # uses karb. Example, if you want to collect all your backup pods in a backup namespace,
+  # and you also want to take backup of some of them using karb
   readinessProbe:
-    enabled: true
+    enabled: false
     initialDelaySeconds: 6
     timeoutSeconds: 1
     successThreshold: 1
