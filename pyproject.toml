@@ -1,20 +1,22 @@
-[tool.poetry]
+[project]
 name = "karb"
 version = "0.1.0"
-description = ""
-authors = ["Lars Solberg <lars.solberg+karb@gmail.com>"]
+description = "Kubernetes app-controlled restore and backup operator"
 readme = "README.md"
+requires-python = ">=3.11,<4.0"
+authors = [
+    {name = "Lars Solberg", email = "lars.solberg+karb@gmail.com"},
+]
+dependencies = [
+    "kopf[dev]>=1.37.2,<2.0.0",
+    "kubernetes>=29.0.0,<30.0.0",
+    "prometheus-client>=0.20.0,<0.21.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-kopf = {extras = ["dev"], version = "^1.37.2"}
-kubernetes = "^29.0.0"
-prometheus-client = "^0.20.0"
+[dependency-groups]
+dev = [
+    "kopf[dev]>=1.37.2,<2.0.0",
+]
 
-
-[tool.poetry.group.dev.dependencies]
-kopf = {extras = ["dev"], version = "^1.37.2"}
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+package = false
