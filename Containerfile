@@ -1,5 +1,6 @@
 # Update check: https://images.chainguard.dev/directory/image/python/versions
-FROM cgr.dev/chainguard/python:3.14.3-dev@sha256:0f7e73dbdef70943ec7c23fdc2f0a29f8199de26cf8ee491e5d2a471041d5041 AS builder
+# NOTE: We intentionally use multi-arch tags here to avoid arch-specific digest mismatch in CI buildx.
+FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/python:latest-dev AS builder
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
@@ -10,7 +11,7 @@ WORKDIR /src
 COPY pyproject.toml uv.lock /src/
 RUN uv sync --frozen --no-dev
 
-FROM cgr.dev/chainguard/python:3.14.3@sha256:3a4f55f57c8e9cf4b18412b261da7b1a2e1064899724fda9e859d455e3956c16
+FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/python:latest
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \

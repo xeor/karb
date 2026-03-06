@@ -16,7 +16,7 @@
 - `hostPath` backend remains disabled by default
 - RBAC includes only required verbs/resources
 - Admission webhook failure policy explicitly reviewed (`Ignore` vs `Fail`)
-- Runtime image pinned by digest
+- Runtime image tags reviewed against current Chainguard stable release
 
 ## Operational Gates
 
