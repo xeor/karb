@@ -1,0 +1,17 @@
+config:
+  namespaces:
+    - default
+  volumeBackend: hostPath
+  hostPathRoot: /var/lib/karb-e2e
+
+operator:
+  image:
+    # Local-only tag loaded into Kind. Not pushed by this workflow.
+    repository: ghcr.io/xeor/karb
+    tag: e2e-local
+    pullPolicy: Never
+  extraEnv:
+    - name: KARB_ALLOW_HOSTPATH_BACKEND
+      value: "true"
+  metrics:
+    enabled: true

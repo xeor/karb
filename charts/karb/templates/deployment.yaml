@@ -20,9 +20,10 @@ spec:
       {{- include "karb.selectorLabels" . | indent 6 }}
   template:
     metadata:
-    {{- if .Values.operator.podAnnotations }}
+      {{- if .Values.operator.podAnnotations }}
+      annotations:
 {{ toYaml .Values.operator.podAnnotations | indent 8 }}
-    {{- end }}
+      {{- end }}
       labels:
         {{- include "karb.labels" . | indent 8 }}
       {{- if .Values.operator.podLabels }}
@@ -42,7 +43,7 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
         imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
-        command: ["/usr/local/bin/kopf", "run"]
+        command: ["kopf", "run"]
         args:
         {{- if .Values.operator.livenessProbe.enabled }}
           - --liveness=http://0.0.0.0:8080/healthz
@@ -66,6 +67,10 @@ spec:
 {{ toYaml .Values.lifecycle | indent 10 }}
 {{- end }}
         env:
+        - name: KARB_VOLUME_BACKEND
+          value: {{ .Values.config.volumeBackend }}
+        - name: KARB_HOSTPATH_ROOT
+          value: {{ .Values.config.hostPathRoot }}
         - name: NFS_SERVER
           value: {{ .Values.config.nfsServer }}
         - name: NFS_ROOT_PATH
@@ -113,9 +118,15 @@ spec:
 {{- end }}
       volumes:
         - name: backup-volume
+{{- if eq .Values.config.volumeBackend "hostPath" }}
+          hostPath:
+            path: {{ .Values.config.hostPathRoot }}
+            type: DirectoryOrCreate
+{{- else }}
           nfs:
             path: {{ .Values.config.nfsRootPath }}
             server: {{ .Values.config.nfsServer }}
+{{- end }}
         - name: cert-volume
           secret:
             secretName: karb-admission-certificate-secret
@@ -132,7 +143,7 @@ spec:
 
       {{- if .Values.operator.image.pullSecrets }}
       imagePullSecrets:
-{{ toYaml .Values.pullSecrets | indent 8 }}
+{{ toYaml .Values.operator.image.pullSecrets | indent 8 }}
       {{- end }}
     {{- if .Values.operator.affinity }}
       affinity:

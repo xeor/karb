@@ -4,11 +4,15 @@ namespaceOverride: ""
 
 config:
   verbose: true
-  # allNamespaces: true  # NOTE: This wont work yet
+  # allNamespaces: true
   namespaces: ["default"]
+
+  volumeBackend: nfs
 
   nfsServer: your-nas.lan
   nfsRootPath: /data/backup/karb
+
+  hostPathRoot: /var/lib/karb
 
 operator:
   image:

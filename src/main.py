@@ -1,6 +1,8 @@
 import os
 import time
 import logging
+import re
+from typing import Optional
 
 import kopf
 
@@ -8,6 +10,22 @@ from kubernetes import config, client
 from kubernetes.stream import stream
 
 import prometheus_client as prometheus
+
+BACKUP_SCHEDULE_ANNOTATION = "karb.boa.nu/backup-schedule"
+BACKUP_NAME_ANNOTATION = "karb.boa.nu/backup-name"
+CONTAINER_NAME_ANNOTATION = "karb.boa.nu/container-name"
+BACKUP_EXEC_ANNOTATION = "karb.boa.nu/backup-exec"
+BACKUP_EXEC_SHELL_ANNOTATION = "karb.boa.nu/backup-exec-shell"
+RESTORE_EXEC_ANNOTATION = "karb.boa.nu/restore-exec"
+RESTORE_EXEC_SHELL_ANNOTATION = "karb.boa.nu/restore-exec-shell"
+
+BACKUP_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+ALLOWED_EXEC_SHELLS = {"/bin/sh -c", "/bin/bash -c"}
+MIN_BACKUP_SCHEDULE_SECONDS = 1
+MAX_BACKUP_SCHEDULE_SECONDS = 86400
+
+if hasattr(prometheus, "disable_created_metrics"):
+    prometheus.disable_created_metrics()
 
 prometheus.start_http_server(9090)
 m_exec_summary = prometheus.Summary(
@@ -22,7 +40,6 @@ m_exec_summary = prometheus.Summary(
         "backup_schedule",
     ],
 )
-PROMETHEUS_DISABLE_CREATED_SERIES = True
 m_exec_counter = prometheus.Counter(
     "karb_exec_total",
     "Total exec requests",
@@ -37,28 +54,75 @@ m_exec_counter = prometheus.Counter(
     ],
 )
 
-if "DEV" in os.environ:
-    config.load_kube_config()
-else:
-    config.load_incluster_config()
+api: Optional[client.CoreV1Api] = None
 
-api = client.CoreV1Api()
+
+def initialize_kubernetes_api() -> client.CoreV1Api:
+    if "DEV" in os.environ:
+        config.load_kube_config()
+    else:
+        config.load_incluster_config()
+    return client.CoreV1Api()
+
+
+def get_api() -> client.CoreV1Api:
+    if api is None:
+        raise kopf.TemporaryError("Kubernetes API client is not initialized", delay=10)
+    return api
 
 
 def is_pod_ready(namespace, pod_name):
+    api_client = get_api()
     try:
-        pod = api.read_namespaced_pod(namespace=namespace, name=pod_name)
+        pod = api_client.read_namespaced_pod(namespace=namespace, name=pod_name)
         if pod.status.conditions:
             for condition in pod.status.conditions:
                 if condition.type == "Ready" and condition.status == "True":
                     return True
         return False
-    except client.rest.ApiException as e:
-        print(f"API exception when reading pod status: {e}")
+    except client.rest.ApiException as err:
+        logging.warning("API exception when reading pod status: %s", err)
         return False
 
 
+def validate_backup_name(backup_name: str) -> str:
+    if not BACKUP_NAME_PATTERN.fullmatch(backup_name):
+        raise kopf.PermanentError(
+            "backup-name must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        )
+    return backup_name
+
+
+def parse_backup_schedule(schedule_raw: str) -> int:
+    try:
+        schedule = int(schedule_raw)
+    except ValueError as err:
+        raise kopf.PermanentError("backup-schedule must be an integer") from err
+
+    if schedule < MIN_BACKUP_SCHEDULE_SECONDS or schedule > MAX_BACKUP_SCHEDULE_SECONDS:
+        raise kopf.PermanentError("backup-schedule must be between 1 and 86400 seconds")
+    return schedule
+
+
+def validate_command(command: Optional[str], annotation_name: str) -> str:
+    if not command or not command.strip():
+        raise kopf.PermanentError(f"{annotation_name} must be a non-empty string")
+    return command
+
+
+def validate_shell(shell: Optional[str], annotation_name: str) -> Optional[str]:
+    if shell is None:
+        return None
+    if shell not in ALLOWED_EXEC_SHELLS:
+        allowed_shells = ", ".join(sorted(ALLOWED_EXEC_SHELLS))
+        raise kopf.PermanentError(f"{annotation_name} must be one of: {allowed_shells}")
+    return shell
+
+
 def get_exec_command(shell, command):
+    command = validate_command(command, "command")
+    shell = validate_shell(shell, "shell")
+
     if shell:
         shell = shell.split()
     else:
@@ -88,7 +152,7 @@ def exec_backup_command_in_pod(
     start_time = time.time()
     try:
         resp = stream(
-            api.connect_get_namespaced_pod_exec,
+            get_api().connect_get_namespaced_pod_exec,
             pod_name,
             namespace,
             command=exec_command,
@@ -153,16 +217,13 @@ def login(**kwargs):
 
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
+    global api
+    api = initialize_kubernetes_api()
+
     settings.posting.level = logging.INFO
-    settings.execution.max_workers = (
-        1000  # Should be configurable? Or use async instead
-    )
+    settings.execution.max_workers = 1000
 
-    # Want to make something ourself here. Since daemons are always running and holding
-    # the finalizer
-    # settings.persistence.finalizer = 'my-operator.example.com/kopf-finalizer'
-
-    config = {
+    webhook_config = {
         "port": int(os.environ.get("webhook_port", "8443")),
         "addr": "0.0.0.0",
         "cafile": "/etc/certs/ca.crt",
@@ -170,34 +231,43 @@ def configure(settings: kopf.OperatorSettings, **_):
         "pkeyfile": "/etc/certs/tls.key",
     }
     if "webhook_host" in os.environ:
-        config["host"] = os.environ["webhook_host"]
-    settings.admission.server = kopf.WebhookServer(**config)
+        webhook_config["host"] = os.environ["webhook_host"]
+    settings.admission.server = kopf.WebhookServer(**webhook_config)
 
 
-@kopf.daemon("pods.v1", annotations={"karb.boa.nu/backup-schedule": kopf.PRESENT})
+@kopf.daemon("pods.v1", annotations={BACKUP_SCHEDULE_ANNOTATION: kopf.PRESENT})
 def run_backups(stopped, name, namespace, spec, annotations, **kwargs):
-
     while not stopped and not is_pod_ready(namespace, name):
         logging.info(f"Pod in {namespace}/{name} not ready yet...")
         stopped.wait(5)
 
-    schedule = int(annotations["karb.boa.nu/backup-schedule"])
+    schedule = parse_backup_schedule(annotations[BACKUP_SCHEDULE_ANNOTATION])
+    backup_name = validate_backup_name(
+        annotations.get(BACKUP_NAME_ANNOTATION, "default")
+    )
+    backup_shell = validate_shell(
+        annotations.get(BACKUP_EXEC_SHELL_ANNOTATION), BACKUP_EXEC_SHELL_ANNOTATION
+    )
+    backup_command = validate_command(
+        annotations.get(BACKUP_EXEC_ANNOTATION), BACKUP_EXEC_ANNOTATION
+    )
+
     logging.info(
         f"Pod in {namespace}/{name} ready. Will backup every {schedule} seconds"
     )
 
     container = get_main_container(
-        spec, name=annotations.get("karb.boa.nu/container-name")
+        spec, name=annotations.get(CONTAINER_NAME_ANNOTATION)
     )
     while not stopped:
         ret = exec_backup_command_in_pod(
             namespace,
             name,
             container["name"],
-            annotations.get("karb.boa.nu/backup-exec"),
-            shell=annotations.get("karb.boa.nu/backup-exec-shell"),
-            backup_name=annotations.get("karb.boa.nu/backup-name", "default"),
-            backup_schedule=schedule,
+            backup_command,
+            shell=backup_shell,
+            backup_name=backup_name,
+            backup_schedule=str(schedule),
         )
         logging.info(
             f"Executed backup-exec-shell command in {namespace}/{name} [{container['name']}] with return {ret}"
@@ -206,37 +276,66 @@ def run_backups(stopped, name, namespace, spec, annotations, **kwargs):
         stopped.wait(schedule)
 
 
-@kopf.on.mutate("pods.v1", annotations={"karb.boa.nu/backup-schedule": kopf.PRESENT})
+@kopf.on.mutate("pods.v1", annotations={BACKUP_SCHEDULE_ANNOTATION: kopf.PRESENT})
 def mutate(body, annotations, patch, **kwargs):
     spec = body["spec"]
     containers = spec.get("containers", [])
     init_containers = spec.get("initContainers", [])
     volumes = spec.get("volumes", [])
 
-    # Add backup volume
-    if "karb-backup-volume" not in [i["name"] for i in volumes]:
-        backupname = annotations.get("karb.boa.nu/backup-name", "default")
-        nfs_root_path = os.environ["NFS_ROOT_PATH"]
-        os.makedirs(f"/karb-data-root/{backupname}", exist_ok=True)
-        volumes.append(
-            {
-                "name": "karb-backup-volume",
-                "nfs": {
-                    "server": os.environ["NFS_SERVER"],
-                    "path": f"{nfs_root_path}/{backupname}",
-                },
-            }
-        )
-        patch.spec["volumes"] = volumes
-
-    # This is the container running the app
-    container = get_main_container(
-        spec, name=annotations.get("karb.boa.nu/container-name")
+    parse_backup_schedule(annotations[BACKUP_SCHEDULE_ANNOTATION])
+    backupname = validate_backup_name(
+        annotations.get(BACKUP_NAME_ANNOTATION, "default")
+    )
+    restore_shell = validate_shell(
+        annotations.get(RESTORE_EXEC_SHELL_ANNOTATION), RESTORE_EXEC_SHELL_ANNOTATION
+    )
+    restore_command = validate_command(
+        annotations.get(RESTORE_EXEC_ANNOTATION), RESTORE_EXEC_ANNOTATION
     )
 
-    # Add karb-backup-volume if it is missing
-    if "karb-backup-volume" not in [i["name"] for i in container["volumeMounts"]]:
-        container["volumeMounts"].append(
+    if "karb-backup-volume" not in [i["name"] for i in volumes]:
+        volume_backend = os.environ.get("KARB_VOLUME_BACKEND", "nfs")
+
+        if volume_backend == "hostPath":
+            hostpath_allowed = os.environ.get(
+                "KARB_ALLOW_HOSTPATH_BACKEND", "false"
+            ).lower() in {"1", "true", "yes"}
+            if not hostpath_allowed:
+                raise kopf.PermanentError(
+                    "hostPath backend is disabled. Set KARB_ALLOW_HOSTPATH_BACKEND=true to enable it"
+                )
+            hostpath_root = os.environ.get("KARB_HOSTPATH_ROOT", "/var/lib/karb")
+            volumes.append(
+                {
+                    "name": "karb-backup-volume",
+                    "hostPath": {
+                        "path": f"{hostpath_root}/{backupname}",
+                        "type": "DirectoryOrCreate",
+                    },
+                }
+            )
+        else:
+            nfs_root_path = os.environ["NFS_ROOT_PATH"]
+            os.makedirs(f"/karb-data-root/{backupname}", exist_ok=True)
+            volumes.append(
+                {
+                    "name": "karb-backup-volume",
+                    "nfs": {
+                        "server": os.environ["NFS_SERVER"],
+                        "path": f"{nfs_root_path}/{backupname}",
+                    },
+                }
+            )
+        patch.spec["volumes"] = volumes
+
+    container = get_main_container(
+        spec, name=annotations.get(CONTAINER_NAME_ANNOTATION)
+    )
+
+    volume_mounts = container.setdefault("volumeMounts", [])
+    if "karb-backup-volume" not in [i["name"] for i in volume_mounts]:
+        volume_mounts.append(
             {
                 "name": "karb-backup-volume",
                 "readOnly": False,
@@ -245,16 +344,10 @@ def mutate(body, annotations, patch, **kwargs):
         )
     patch.spec["containers"] = containers
 
-    # Add init-container if missing
     if "karb-restorer" not in [i["name"] for i in init_containers]:
         init_container = container.copy()
         init_container["name"] = "karb-restorer"
-
-        # Need to replace "command" here
-        init_container["command"] = get_exec_command(
-            annotations.get("karb.boa.nu/restore-exec-shell"),
-            annotations.get("karb.boa.nu/restore-exec"),
-        )
+        init_container["command"] = get_exec_command(restore_shell, restore_command)
 
         init_containers.append(init_container)
         patch.spec["initContainers"] = init_containers

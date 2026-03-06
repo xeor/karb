@@ -14,8 +14,10 @@ The project is being revived after a long maintenance gap, so prioritize:
 - Language: Python (uv-managed)
 - Runtime: Kubernetes operator based on `kopf`
 - Main code path: `src/main.py`
+- Test path: `tests/test_main.py`
 - Deployment: Helm chart in `charts/karb`
 - Container build: `Containerfile`
+- Developer docs: `docs/`
 
 ## Non-Negotiable Rules
 
@@ -33,6 +35,7 @@ The project is being revived after a long maintenance gap, so prioritize:
 - After dependency changes, run at minimum:
   - `uv lock`
   - `uv sync --frozen`
+  - `uv run pytest -q`
   - `uv run python -m py_compile src/main.py`
 - If a new version is deferred, document why in the PR/commit message.
 
@@ -92,8 +95,8 @@ The project is being revived after a long maintenance gap, so prioritize:
 For Python or operator logic changes:
 
 - `uv lock`
-- `uv lock`
 - `uv sync --frozen`
+- `uv run pytest -q`
 - `uv run python -m py_compile src/main.py`
 
 For Helm chart changes:

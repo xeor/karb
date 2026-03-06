@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: karb-e2e-app
+  namespace: default
+  annotations:
+    karb.boa.nu/container-name: "app"
+    karb.boa.nu/backup-name: "e2e"
+    karb.boa.nu/backup-schedule: "10"
+    karb.boa.nu/backup-exec-shell: "/bin/sh -c"
+    karb.boa.nu/backup-exec: |
+      date +%s >> /karb-data/backup.log
+    karb.boa.nu/restore-exec-shell: "/bin/sh -c"
+    karb.boa.nu/restore-exec: |
+      echo restore-ran > /karb-data/restore-ran
+      if [ -f /karb-data/backup.log ]; then
+        cp /karb-data/backup.log /karb-data/restore-content
+      fi
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]

@@ -1,0 +1,45 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Reset cluster and start full Tilt dev loop
+    cmds:
+      - tilt down || true
+      - ./hack/kind-e2e/down.sh
+      - ./hack/kind-e2e/bootstrap.sh
+      - tilt up
+
+  test:
+    desc: Run Python unit tests
+    cmds:
+      - uv run pytest -q
+
+  kind-up:
+    desc: Create Kind cluster and deploy karb
+    cmds:
+      - ./hack/kind-e2e/up.sh
+
+  kind-test:
+    desc: Run end-to-end verification on Kind
+    cmds:
+      - ./hack/kind-e2e/test.sh
+
+  kind-load-image:
+    desc: Build, load, and redeploy karb image in Kind
+    cmds:
+      - ./hack/kind-e2e/load-image.sh
+
+  tilt-up:
+    desc: Start tilt dashboard and dev loop
+    cmds:
+      - tilt up
+
+  tilt-down:
+    desc: Stop tilt-managed resources
+    cmds:
+      - tilt down
+
+  kind-down:
+    desc: Delete Kind test cluster
+    cmds:
+      - ./hack/kind-e2e/down.sh

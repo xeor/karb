@@ -8,15 +8,19 @@ authors = [
     {name = "Lars Solberg", email = "lars.solberg+karb@gmail.com"},
 ]
 dependencies = [
-    "kopf[dev]>=1.37.2,<2.0.0",
-    "kubernetes>=29.0.0,<30.0.0",
-    "prometheus-client>=0.20.0,<0.21.0",
+    "kopf>=1.43.0,<2.0.0",
+    "kubernetes>=35.0.0,<36.0.0",
+    "prometheus-client>=0.24.1,<0.25.0",
 ]
 
 [dependency-groups]
 dev = [
-    "kopf[dev]>=1.37.2,<2.0.0",
+    "kopf[dev]>=1.43.0,<2.0.0",
+    "pytest>=8.4.2,<9.0.0",
 ]
 
 [tool.uv]
 package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
