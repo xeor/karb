@@ -55,6 +55,12 @@ Install:
 helm upgrade --install karb ./charts/karb --namespace karb-system --create-namespace -f values.yaml
 ```
 
+Versioning note:
+
+- Chart `appVersion` tracks production image tag.
+- If `operator.image.tag` is empty, Helm uses `appVersion` as image tag.
+- Production repository is `ghcr.io/xeor/karb`.
+
 ## Development testing
 
 Use docs in `docs/`:

@@ -23,6 +23,10 @@
 - Kind E2E passes (`task kind-up`, `task kind-test`)
 - Tilt loop passes (`task dev`, `tilt trigger e2e-test`)
 - No local-only values in production Helm values
+- Version alignment verified:
+  - `charts/karb/Chart.yaml` `version` == chart release version
+  - `charts/karb/Chart.yaml` `appVersion` == production image tag
+  - release tag `vX.Y.Z` publishes container tag `X.Y.Z`
 
 ## Known Pre-Prod Decisions
 

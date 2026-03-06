@@ -90,6 +90,13 @@ The project is being revived after a long maintenance gap, so prioritize:
 - Avoid hidden side effects in mutation handlers.
 - Preserve backward compatibility for existing chart values unless a breaking change is requested.
 
+## Versioning and Tagging Policy
+
+- Helm chart `version` must be bumped for every chart release.
+- Helm chart `appVersion` must track the production container image tag.
+- Default chart image tag should resolve to `appVersion` when no explicit tag is set in values.
+- Git release tags follow `vX.Y.Z`; container publishing must produce `X.Y.Z` image tags.
+
 ## Expected Validation Before Finishing a Change
 
 For Python or operator logic changes:

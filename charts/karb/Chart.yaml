@@ -1,7 +1,7 @@
 name: karb
 version: 1.0.3
 apiVersion: v2
-appVersion: 0.3.0
+appVersion: 1.0.3
 # home: https://...
 description: k8s App-controlled Restore & Backup. Another kind of doing backup.
 keywords:
