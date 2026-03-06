@@ -65,4 +65,21 @@ entries:
     urls:
     - https://github.com/xeor/karb/releases/download/karb-1.0.0/karb-1.0.0.tgz
     version: 1.0.0
-generated: "2026-03-06T17:52:41.077289581Z"
+  karb-chart:
+  - apiVersion: v2
+    appVersion: 1.0.3
+    created: "2026-03-06T22:47:25.922745753Z"
+    description: k8s App-controlled Restore & Backup. Another kind of doing backup.
+    digest: 4f8ab699c9e67280eedb043524c54ec7e3ef318d05b797623bd99906ea821dfa
+    keywords:
+    - kubernetes
+    - backup
+    kubeVersion: '>=1.9.0-0'
+    maintainers:
+    - email: lars.solberg+karb@gmail.com
+      name: xeor
+    name: karb-chart
+    urls:
+    - https://github.com/xeor/karb/releases/download/karb-chart-1.0.3/karb-chart-1.0.3.tgz
+    version: 1.0.3
+generated: "2026-03-06T22:47:25.922762875Z"
