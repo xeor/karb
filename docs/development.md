@@ -8,6 +8,7 @@
 - `task kind-test`: run end-to-end verification
 - `task kind-load-image`: rebuild/reload image and restart operator
 - `task kind-down`: delete Kind cluster
+- `task release`: run release validations, create `vX.Y.Z` tag from chart version, push `main` and tag
 
 ## Unit Loop
 

@@ -40,7 +40,7 @@ spec:
       serviceAccountName: {{ .Values.operator.serviceAccountName }}
       automountServiceAccountToken: true
       containers:
-      - name: {{ .Chart.Name }}
+      - name: karb
         image: "{{ .Values.operator.image.repository }}:{{ default .Chart.AppVersion .Values.operator.image.tag }}"
         imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
         command: ["kopf", "run"]

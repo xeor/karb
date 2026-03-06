@@ -44,4 +44,9 @@ jobs:
 
       - name: Push chart to GHCR OCI
         run: |
-          helm push .charts/karb-*.tgz oci://ghcr.io/${{ github.repository_owner }}/karb
+          CHART_VERSION="$(helm show chart charts/karb | awk '/^version:/ {print $2}')"
+          if helm show chart "oci://ghcr.io/${{ github.repository_owner }}/karb-chart" --version "${CHART_VERSION}" >/dev/null 2>&1; then
+            echo "OCI chart version ${CHART_VERSION} already exists, skipping push"
+            exit 0
+          fi
+          helm push .charts/karb-chart-*.tgz oci://ghcr.io/${{ github.repository_owner }}

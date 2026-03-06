@@ -96,6 +96,7 @@ The project is being revived after a long maintenance gap, so prioritize:
 - Helm chart `appVersion` must track the production container image tag.
 - Default chart image tag should resolve to `appVersion` when no explicit tag is set in values.
 - Git release tags follow `vX.Y.Z`; container publishing must produce `X.Y.Z` image tags.
+- Keep package naming distinct in GHCR: container image at `ghcr.io/<owner>/karb`, OCI chart at `ghcr.io/<owner>/karb-chart`.
 
 ## Expected Validation Before Finishing a Change
 

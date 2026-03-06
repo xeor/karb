@@ -9,6 +9,11 @@ tasks:
       - ./hack/kind-e2e/bootstrap.sh
       - tilt up
 
+  release:
+    desc: Validate, tag, and push main release
+    cmds:
+      - ./hack/release.sh
+
   test:
     desc: Run Python unit tests
     cmds:

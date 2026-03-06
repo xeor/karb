@@ -1,6 +1,7 @@
 ## Override the deployment namespace
 ##
 namespaceOverride: ""
+nameOverride: "karb"
 
 config:
   verbose: true

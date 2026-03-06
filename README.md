@@ -60,6 +60,7 @@ Versioning note:
 - Chart `appVersion` tracks production image tag.
 - If `operator.image.tag` is empty, Helm uses `appVersion` as image tag.
 - Production repository is `ghcr.io/xeor/karb`.
+- OCI chart package is published as `ghcr.io/<owner>/karb-chart`.
 
 ## Development testing
 
@@ -73,6 +74,12 @@ Run tests:
 
 ```bash
 task test
+```
+
+Release:
+
+```bash
+task release
 ```
 
 ## Spec

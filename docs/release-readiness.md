@@ -10,6 +10,22 @@
 - `helm template karb charts/karb`
 - `podman build -f Containerfile .`
 
+## Automated Release
+
+Run from a clean `main` worktree:
+
+```bash
+task release
+```
+
+`task release` performs:
+
+- version consistency checks (`version == appVersion`, SemVer)
+- validation commands from this checklist
+- annotated git tag `vX.Y.Z`
+- `git push origin main`
+- `git push origin vX.Y.Z`
+
 ## Security Gates
 
 - Annotation input validation rejects unsafe values (`backup-name`, schedule, shell)
@@ -27,6 +43,7 @@
   - `charts/karb/Chart.yaml` `version` == chart release version
   - `charts/karb/Chart.yaml` `appVersion` == production image tag
   - release tag `vX.Y.Z` publishes container tag `X.Y.Z`
+  - OCI chart ref resolves as `oci://ghcr.io/<owner>/karb-chart --version X.Y.Z`
 
 ## Known Pre-Prod Decisions
 
