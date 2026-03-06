@@ -9,6 +9,7 @@ jobs:
   release:
     permissions:
       contents: write
+      packages: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,3 +32,16 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_SKIP_EXISTING: "true"
+
+      - name: Login to GHCR (Helm OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Package chart for OCI
+        run: |
+          mkdir -p .charts
+          helm package charts/karb --destination .charts
+
+      - name: Push chart to GHCR OCI
+        run: |
+          helm push .charts/karb-*.tgz oci://ghcr.io/${{ github.repository_owner }}/karb
