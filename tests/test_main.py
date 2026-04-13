@@ -173,6 +173,44 @@ def test_mutate_supports_hostpath_backend():
     assert volume["hostPath"]["type"] == "DirectoryOrCreate"
 
 
+def test_mutate_removes_probes_from_restorer_init_container():
+    body = {
+        "spec": {
+            "containers": [
+                {
+                    "name": "app",
+                    "livenessProbe": {"httpGet": {"path": "/healthz", "port": 8080}},
+                    "readinessProbe": {"exec": {"command": ["/bin/sh", "-c", "true"]}},
+                    "startupProbe": {"exec": {"command": ["/bin/sh", "-c", "true"]}},
+                }
+            ],
+            "volumes": [],
+            "initContainers": [],
+        }
+    }
+    annotations = {
+        "karb.boa.nu/backup-schedule": "30",
+        "karb.boa.nu/backup-name": "default",
+        "karb.boa.nu/restore-exec": "echo restore",
+    }
+    patch_obj = SimpleNamespace(spec={})
+
+    with patch.dict(
+        MAIN.os.environ,
+        {"NFS_SERVER": "nfs.example", "NFS_ROOT_PATH": "/exports/karb"},
+        clear=False,
+    ):
+        with patch.object(MAIN.os, "makedirs", return_value=None):
+            MAIN.mutate(body=body, annotations=annotations, patch=patch_obj)
+
+    init_container = next(
+        c for c in patch_obj.spec["initContainers"] if c["name"] == "karb-restorer"
+    )
+    assert "livenessProbe" not in init_container
+    assert "readinessProbe" not in init_container
+    assert "startupProbe" not in init_container
+
+
 def test_mutate_rejects_hostpath_backend_when_not_allowed():
     body = {
         "spec": {

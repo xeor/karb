@@ -346,6 +346,9 @@ def mutate(body, annotations, patch, **kwargs):
 
     if "karb-restorer" not in [i["name"] for i in init_containers]:
         init_container = container.copy()
+        init_container.pop("livenessProbe", None)
+        init_container.pop("readinessProbe", None)
+        init_container.pop("startupProbe", None)
         init_container["name"] = "karb-restorer"
         init_container["command"] = get_exec_command(restore_shell, restore_command)
 
