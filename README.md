@@ -79,7 +79,7 @@ task test
 Release:
 
 ```bash
-task release
+task release VERSION=X.Y.Z
 ```
 
 ## Spec

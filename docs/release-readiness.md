@@ -12,16 +12,20 @@
 
 ## Automated Release
 
-Run from a clean `main` worktree:
+Run from `main` with release changes staged or already committed (no unstaged files):
 
 ```bash
-task release
+task release VERSION=X.Y.Z
 ```
 
 `task release` performs:
 
+- preflight reminder to stage or commit release changes
+- fail-fast if unstaged/untracked files are present
+- update `charts/karb/Chart.yaml` (`version` and `appVersion`) to `VERSION`
 - version consistency checks (`version == appVersion`, SemVer)
 - validation commands from this checklist
+- release commit from currently staged changes (`release: vX.Y.Z`) when needed
 - annotated git tag `vX.Y.Z`
 - `git push origin main`
 - `git push origin vX.Y.Z`

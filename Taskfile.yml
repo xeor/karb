@@ -10,9 +10,9 @@ tasks:
       - tilt up
 
   release:
-    desc: Validate, tag, and push main release
+    desc: Validate, tag, and push main release (VERSION=X.Y.Z)
     cmds:
-      - ./hack/release.sh
+      - ./hack/release.sh {{.VERSION}}
 
   test:
     desc: Run Python unit tests
