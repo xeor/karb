@@ -8,7 +8,7 @@
 - `task kind-test`: run end-to-end verification
 - `task kind-load-image`: rebuild/reload image and restart operator
 - `task kind-down`: delete Kind cluster
-- `task release VERSION=X.Y.Z`: preflight staging checks, bump chart `version`/`appVersion`, validate, commit staged changes, create/push `vX.Y.Z`
+- `task release VERSION=X.Y.Z`: preflight staging checks, bump chart `version`/`appVersion` and values `operator.image.tag`, validate, commit staged changes, create/push `vX.Y.Z`
 
 ## Unit Loop
 

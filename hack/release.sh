@@ -44,28 +44,49 @@ if [[ -n "${unstaged_changes}" || -n "${untracked_changes}" ]]; then
 fi
 
 chart_file="charts/karb/Chart.yaml"
+values_file="charts/karb/values.yaml"
 
-python3 - "${chart_file}" "${release_version}" <<'PY'
+python3 - "${chart_file}" "${values_file}" "${release_version}" <<'PY'
 from pathlib import Path
 import sys
 
 chart_path = Path(sys.argv[1])
-version = sys.argv[2]
+values_path = Path(sys.argv[2])
+version = sys.argv[3]
 
-lines = chart_path.read_text(encoding="utf-8").splitlines()
-updated = []
-for line in lines:
+chart_lines = chart_path.read_text(encoding="utf-8").splitlines()
+updated_chart = []
+for line in chart_lines:
     if line.startswith("version:"):
-        updated.append(f"version: {version}")
+        updated_chart.append(f"version: {version}")
     elif line.startswith("appVersion:"):
-        updated.append(f"appVersion: {version}")
+        updated_chart.append(f"appVersion: {version}")
     else:
-        updated.append(line)
+        updated_chart.append(line)
 
-chart_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+values_lines = values_path.read_text(encoding="utf-8").splitlines()
+updated_values = []
+inside_image_block = False
+for line in values_lines:
+    if line.startswith("  image:"):
+        inside_image_block = True
+        updated_values.append(line)
+        continue
+
+    if inside_image_block and line.startswith("    tag:"):
+        updated_values.append(f"    tag: \"{version}\"")
+        continue
+
+    if inside_image_block and not line.startswith("    "):
+        inside_image_block = False
+
+    updated_values.append(line)
+
+chart_path.write_text("\n".join(updated_chart) + "\n", encoding="utf-8")
+values_path.write_text("\n".join(updated_values) + "\n", encoding="utf-8")
 PY
 
-git add "${chart_file}"
+git add "${chart_file}" "${values_file}"
 
 chart_version="$(awk '/^version:/ {print $2}' "${chart_file}")"
 app_version="$(awk '/^appVersion:/ {gsub(/"/, "", $2); print $2}' "${chart_file}")"

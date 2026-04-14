@@ -23,6 +23,7 @@ task release VERSION=X.Y.Z
 - preflight reminder to stage or commit release changes
 - fail-fast if unstaged/untracked files are present
 - update `charts/karb/Chart.yaml` (`version` and `appVersion`) to `VERSION`
+- update `charts/karb/values.yaml` `operator.image.tag` to `VERSION`
 - version consistency checks (`version == appVersion`, SemVer)
 - validation commands from this checklist
 - release commit from currently staged changes (`release: vX.Y.Z`) when needed
